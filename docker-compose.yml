@@ -1,0 +1,58 @@
+version: '3.8'
+services:
+
+  gbh-dnd-backend:
+    build:
+      context: ./
+      dockerfile: ./docker/backend/Dockerfile
+    # Перезапуск контейнера если процесс упадет
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - 5080:5000
+    volumes:
+      - ./src/backend/app:/project/app
+      - ./src/backend/migrations:/project/migrations
+      - ./src/backend/alembic.ini:/project/alembic.ini
+    depends_on:
+      - gbh-dnd-database-bouncer
+
+  gbh-dnd-database-bouncer:
+    image: bitnami/pgbouncer:1.17.0
+    restart: unless-stopped
+    environment:
+      POSTGRESQL_HOST: ${POSTGRES_HOST:-gbh-dnd-database}
+      POSTGRESQL_DATABASE: ${POSTGRES_DB:-gbh_dnd}
+      POSTGRESQL_USERNAME: ${POSTGRES_USER:-gbh_dnd}
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD:-1234}
+      POSTGRESQL_PORT: ${POSTGRES_PORT:-5432}
+      PGBOUNCER_PORT: ${PGBOUNCER_PORT:-6432}
+      PGBOUNCER_DATABASE: ${PGBOUNCER_DB:-gbh_dnd}
+      PGBOUNCER_POOL_MODE: transaction
+    ports:
+      - 6432:6432
+    depends_on:
+      - gbh-dnd-database
+
+  gbh-dnd-database:
+    image: postgres:14
+    restart: unless-stopped
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "${POSTGRES_DB:-gbh_dnd}", "-U", "${POSTGRES_USER:-gbh_dnd}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - db:/var/lib/postgresql/data
+    # env_file приоритетнее environment, поэтому можно там перебить
+    env_file: .env
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-gbh_dnd}
+      - POSTGRES_USER=${POSTGRES_USER:-gbh_dnd}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-1234}
+
+volumes:
+  db:

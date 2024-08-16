@@ -1,0 +1,12 @@
+
+
+# init alembic
+$ poetry run alembic init ./src/backend/migrations
+
+# new revision
+$ export $(cat ./.env | grep -vE "^#" | xargs)
+$ cd src && poetry run alembic revision --autogenerate -m "init schema"
+
+
+
+
